@@ -1,39 +1,51 @@
-const noop = ()=> {}
+const noop = () => { }
 const log = console.log
+
+const PENDING = 'PENDING'
+const FULFILLED = 'FULFILLED'
+const REJECTED = 'REJECTED'
+
+const nextTick = typeof setImmediate !== 'undefined' ? (task) => {
+  setImmediate(task)
+} : () => {
+  setTimeout(task)
+}
 
 function MyPromise(excutor) {
   this.val = null
-  this.nextTicks = {
+  this.state = PENDING
+  this.deferFuncs = {
     y: noop,
     n: noop
   }
   excutor(this.relsove.bind(this))
 }
+
 // 本质是对结果进行处理（存起来，并调用下一个promise）
 MyPromise.prototype.relsove = function (output) {
   // log(output)
-  setTimeout(() => {
-    if(output instanceof MyPromise) {
-      
+  nextTick(() => {
+    // then中return的值为promise，用.then的方式将这个peomise的值“接住”
+    if (output instanceof MyPromise) {
       output.then(lastOutput => {
         this.val = lastOutput
-        this.nextTicks.y(this.val)
+        this.deferFuncs.y(this.val)
       })
     } else {
       this.val = output
-      this.nextTicks.y(this.val) // next input
+      this.deferFuncs.y(this.val) // next input
     }
-  }, 0)
+  })
 }
 
 MyPromise.prototype.then = function (bindFuncY, bindFuncN) {
   return new MyPromise((resolve, reject) => {
-    this.nextTicks.y = (input) => {
+    this.deferFuncs.y = (input) => {
       const output = bindFuncY(input)
       // log(output)
       resolve(output)
     }
-    this.nextTicks.n = ()=> {
+    this.deferFuncs.n = () => {
       const errorReson = bindFuncN()
       this.val = errorReson
       reject(errorReson)
@@ -49,14 +61,15 @@ var demo = new MyPromise((resolve, reject) => {
     log('02', val)
     res(2)
   })
-  .then(l => {
-    log('03', l)
-    return 3
-  })
+    .then(l => {
+      log('03', l)
+      return 3
+    })
 }).then((val) => {
-  // log(val)
   log('04', val)
-
   return 4
+}).then(val => {
+  log('05', val)
+  return 5
 })
 
