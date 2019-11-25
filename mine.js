@@ -39,6 +39,10 @@ MyPromise.prototype.relsove = function (output) {
 }
 
 MyPromise.prototype.then = function (bindFuncY, bindFuncN) {
+  // 如果then的参数不是函数，需要将值透传，所以返回原有参数
+  bindFuncY = typeof bindFuncY === 'function' ? bindFuncY : v => v
+  bindFuncN = typeof bindFuncN === 'function' ? bindFuncN : v => v
+  
   return new MyPromise((resolve, reject) => {
     this.deferFuncs.y = (input) => {
       const output = bindFuncY(input)
@@ -65,10 +69,7 @@ var demo = new MyPromise((resolve, reject) => {
       log('03', l)
       return 3
     })
-}).then((val) => {
-  log('04', val)
-  return 4
-}).then(val => {
+}).then(4).then(val => {
   log('05', val)
   return 5
 })
