@@ -5,9 +5,9 @@ const PENDING = 'PENDING'
 const FULFILLED = 'FULFILLED'
 const REJECTED = 'REJECTED'
 
-const nextTick = typeof setImmediate !== 'undefined' ? (task) => {
+const nextTick = typeof setImmediate !== 'undefined' ? task => {
   setImmediate(task)
-} : () => {
+} : task => {
   setTimeout(task)
 }
 
@@ -19,25 +19,28 @@ const MyPromise = (function () {
       this.val = null
       this.state = PENDING
       this.deferFuncs = {
-        y: noop,
-        n: noop
+        y: [],
+        n: []
       }
       excutor(this.relsove.bind(this))
     }
 
+    // 本质是对结果进行处理（存起来，并调用下一个promise）
     relsove(output) {
-      // log(output)
       nextTick(() => {
         // then中return的值为promise，用.then的方式将这个peomise的值“接住”
         if (output instanceof MyPromise) {
           output.then(lastOutput => {
             // 当前promise的value值就是下一个then的输入值
             this.val = lastOutput
-            this.deferFuncs.y(this.val)
+            this.deferFuncs.y.forEach(y => y(this.val))
           })
         } else {
           this.val = output
-          this.deferFuncs.y(this.val) // next input
+          this.deferFuncs.y.forEach(y => y(this.val)) // next input
+        }
+        if (!this.val) {
+          log(this)
         }
       })
     }
@@ -48,16 +51,16 @@ const MyPromise = (function () {
       bindFuncN = typeof bindFuncN === 'function' ? bindFuncN : v => v
 
       return new MyPromise((resolve, reject) => {
-        this.deferFuncs.y = (input) => {
+        this.deferFuncs.y.push((input) => {
           const output = bindFuncY(input)
           // log(output)
           resolve(output)
-        }
-        this.deferFuncs.n = () => {
+        })
+        this.deferFuncs.n.push(() => {
           const errorReson = bindFuncN()
           this.val = errorReson
           reject(errorReson)
-        }
+        })
       })
     }
 
@@ -65,15 +68,11 @@ const MyPromise = (function () {
   return MyPromise
 })()
 
-// 本质是对结果进行处理（存起来，并调用下一个promise）
-// MyPromise.prototype.
-// }
-
-// MyPromise.prototype.
-
 var demo = new MyPromise((resolve, reject) => {
-  log('01')
-  resolve(1)
+  nextTick(() => {
+    log('01')
+    resolve(1)
+  })
 }).then((val) => {
   return new MyPromise((res) => {
     log('02', val)
