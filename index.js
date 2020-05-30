@@ -17,7 +17,7 @@ class PromiseA {
     // 1.3 “value” is any legal JavaScript value (including undefined, a thenable, or a promise).
     this.value = null
     this.statu = PENDING
-    this.onFulfilledFuncs = []
+    this.onFulfilledCallbacks = []
     this.onRejectedFuncs = []
     try {
       func(this.resolve.bind(this), this.reject.bind(this))
@@ -48,14 +48,12 @@ class PromiseA {
     }
     this.handleFulfilled(val)
 
-    setTimeout(() => {
-      // onFulfilled为then保存的参数
-      this.onFulfilledFuncs.forEach(onFulfilledWrapper => {
-
+    defer(() => {
+      // 2.2.2.1 it must be called after promise is fulfilled, with promise’s value as its first argument.
+      this.onFulfilledCallbacks.forEach(onFulfilledWrapper => {
         onFulfilledWrapper(val)
       })
-
-    }, 1000)
+    })
   }
 
   reject(e) {
@@ -68,47 +66,51 @@ class PromiseA {
     return new PromiseA((resolve, reject) => {
 
       //2.2.1.1  If onFulfilled is not a function, it must be ignored.
-      if (isFunction(onFulfilled)) {
-        console.log(onFulfilled)
-
-        // 有可能在下一个微任务中调用，所以只能先存起来
-        // 2.2.2.1 it must be called after promise is fulfilled, with promise’s value as its first argument.
-        this.onFulfilledFuncs.push((val) => {
-          let res = null
-          if (isFunction(onFulfilled)) {
-            try {
-              //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
-              res = onFulfilled(val)
-            } catch (e) {
-              console.log(111)
-              //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
-              res = e
-              reject(e)
-            }
-          } else {
-            //2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
-            res = onFulfilled
-          }
-          resolve(res)
-        })
-
+      if (!isFunction(onFulfilled)) {
+        //2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
+        onFulfilled = () => onFulfilled
       }
+
+      // 有可能在下一个微任务中调用，所以只能先存起来
+      this.onFulfilledCallbacks.push(val => {
+        let res = null
+        try {
+          //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
+          res = onFulfilled(val)
+        } catch (e) {
+          console.log(111)
+          //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
+          res = e
+          reject(e)
+        }
+        resolve(res)
+      })
+
       //2.2.1.2  If onRejected is not a function, it must be ignored.
       if (isFunction(onRejected)) {
-        this.onRejectedFuncs.push(onRejected)
+        this.onRejectedFuncs.push(e => {
+
+        })
       }
     })
   }
 }
 
-new PromiseA((resolve, reject) => {
-  console.log('first New')
-  
+const a = new PromiseA((resolve, reject) => {
+  console.log('a')
+
   resolve(1)
-}).then((val) => {
-  const a = 1
-  a = 3
+})
+
+const b = a.then((val) => {
+  // const a = 1
+  console.log('b', val)
+  // a = 3
   return 2
-}).then((val) => {
+})
+
+const c = b.then((val) => {
+  console.log('c', val)
+
   return 3
 })
