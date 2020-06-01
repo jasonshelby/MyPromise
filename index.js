@@ -43,26 +43,27 @@ class PromiseA {
   }
 
   resolve(val) {
-    if (this.statu !== PENDING) {
-      console.log(this.statu)
-      // throw new Error('')
-    }
     this.handleFulfilled(val)
 
     defer(() => {
       // 2.2.2.1 it must be called after promise is fulfilled, with promise’s value as its first argument.
-      this.onFulfilledCallbacks.forEach(onFulfilledWrapper => {
-        onFulfilledWrapper(val)
+      // 2.2.2.2 it must not be called before promise is fulfilled.
+      // 2.2.2.3 it must not be called more than once.
+      // 2.2.6 then may be called multiple times on the same promise.
+      this.onFulfilledCallbacks.forEach(onFulfilledCaller => {
+        onFulfilledCaller(val)
       })
     })
   }
 
   reject(reason) {
-    // console.log('reason:', reason)
     this.handleRejected(reason)
     defer(() => {
-      this.onRejectedCallbacks.forEach(onRejectdWrapper => {
-        onRejectdWrapper(reason)
+      // 2.2.3.1 it must be called after promise is rejected, with promise’s reason as its first argument.
+      // 2.2.3.2 it must not be called before promise is rejected.
+      // 2.2.3.3 it must not be called more than once.
+      this.onRejectedCallbacks.forEach(onRejectdCaller => {
+        onRejectdCaller(reason)
       })
     })
   }
@@ -71,36 +72,44 @@ class PromiseA {
   then(onFulfilled, onRejected) {
     // 2.2.7 then must return a promise
     return new PromiseA((resolve, reject) => {
-
-      //2.2.1.1  If onFulfilled is not a function, it must be ignored.
-      if (!isFunction(onFulfilled)) {
-        //2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
+      // 2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
+      if (!isFunction(onFulfilled) && this.statu === FULFILLED) {
         onFulfilled = () => this.value
       }
-      //2.2.1.2  If onRejected is not a function, it must be ignored.
-      if (!isFunction(onRejected)) {
-        onRejected = () => onRejected
+// console.log(!isFunction(onRejected) && this.statu === REJECTED)
+// console.log(onRejected, this.statu)
+      // 2.2.7.4 If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason as promise1.
+      if (!isFunction(onRejected) && this.statu === REJECTED) {
+        onRejected = () => this.value
       }
 
-      this.onFulfilledCallbacks.push(val => {
-        try {
-          //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
-          resolve(onFulfilled(val))
-        } catch (e) {
-          //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
-          reject(e)
-        }
-      })
+      // 2.2.1.1  If onFulfilled is not a function, it must be ignored.
+      if (isFunction(onFulfilled)) {
+        this.onFulfilledCallbacks.push(val => {
+          try {
+            //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
+            //2.2.5 onFulfilled and onRejected must be called as functions 
+            resolve(onFulfilled(val))
+          } catch (e) {
+            //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
+            reject(e)
+          }
+        })
+      }
 
-      this.onRejectedCallbacks.push(reason => {
-        try {
-          //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
-          resolve(onRejected(reason))
-        } catch (e) {
-          //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
-          reject(e)
-        }
-      })
+      //2.2.1.2  If onRejected is not a function, it must be ignored.
+      if (isFunction(onRejected)) {
+        this.onRejectedCallbacks.push(reason => {
+          try {
+            //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
+            //2.2.5 onFulfilled and onRejected must be called as functions 
+            resolve(onRejected(reason))
+          } catch (e) {
+            //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
+            reject(e)
+          }
+        })
+      }
     })
   }
 }
@@ -111,17 +120,18 @@ const a = new PromiseA((resolve, reject) => {
   resolve(1)
 })
 
-const b = a.then(2, e => {
+const b = a.then(() => {
+  const a = 1
+  a = 3
+}, e => {
   console.log(3, e)
+  return e
 })
 
 const c = b.then((val) => {
   console.log('c', val)
   return 3
-}, e => {
-  console.log(4, e)
-  return 0
-})
+}, 3)
 
 const d = c.then((val) => {
   console.log('d', val)
