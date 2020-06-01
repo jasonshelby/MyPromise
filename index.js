@@ -75,7 +75,7 @@ class PromiseA {
       //2.2.1.1  If onFulfilled is not a function, it must be ignored.
       if (!isFunction(onFulfilled)) {
         //2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
-        onFulfilled = () => onFulfilled
+        onFulfilled = () => this.value
       }
       //2.2.1.2  If onRejected is not a function, it must be ignored.
       if (!isFunction(onRejected)) {
@@ -88,7 +88,6 @@ class PromiseA {
           resolve(onFulfilled(val))
         } catch (e) {
           //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
-          // res = e
           reject(e)
         }
       })
@@ -98,6 +97,7 @@ class PromiseA {
           //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
           resolve(onRejected(reason))
         } catch (e) {
+          //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
           reject(e)
         }
       })
@@ -111,13 +111,7 @@ const a = new PromiseA((resolve, reject) => {
   resolve(1)
 })
 
-const b = a.then((val) => {
-  console.log('b', val)
-
-  const a = 1
-  a = 3
-  return 2
-}, e => {
+const b = a.then(2, e => {
   console.log(3, e)
 })
 
