@@ -4,7 +4,7 @@ function isFunction(param) {
 
 // 2.2.4 onFulfilled or onRejected must not be called until the execution context stack contains only platform code
 function defer(...a) {
-  return setTimeout(...a)
+  return process.nextTick(...a)
 }
 
 // 2.1 A promise must be in one of three states: pending, fulfilled, or rejected.
@@ -18,11 +18,11 @@ class PromiseA {
     this.value = null
     this.statu = PENDING
     this.onFulfilledCallbacks = []
-    this.onRejectedFuncs = []
+    this.onRejectedCallbacks = []
     try {
       func(this.resolve.bind(this), this.reject.bind(this))
     } catch (e) {
-      console.log(212)
+      this.reject.call(this, e)
     }
   }
   // 2.1.2 When fulfilled, a promise:
@@ -44,7 +44,8 @@ class PromiseA {
 
   resolve(val) {
     if (this.statu !== PENDING) {
-      throw new Error('')
+      console.log(this.statu)
+      // throw new Error('')
     }
     this.handleFulfilled(val)
 
@@ -56,8 +57,14 @@ class PromiseA {
     })
   }
 
-  reject(e) {
-    console.log(222, e)
+  reject(reason) {
+    // console.log('reason:', reason)
+    this.handleRejected(reason)
+    defer(() => {
+      this.onRejectedCallbacks.forEach(onRejectdWrapper => {
+        onRejectdWrapper(reason)
+      })
+    })
   }
 
   // 2.2.1 Both onFulfilled and onRejected are optional arguments:
@@ -70,28 +77,30 @@ class PromiseA {
         //2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
         onFulfilled = () => onFulfilled
       }
+      //2.2.1.2  If onRejected is not a function, it must be ignored.
+      if (!isFunction(onRejected)) {
+        onRejected = () => onRejected
+      }
 
-      // 有可能在下一个微任务中调用，所以只能先存起来
       this.onFulfilledCallbacks.push(val => {
-        let res = null
         try {
           //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
-          res = onFulfilled(val)
+          resolve(onFulfilled(val))
         } catch (e) {
-          console.log(111)
           //2.2.7.2 If either onFulfilled or onRejected throws an exception e, promise2 must be rejected with e as the reason.
-          res = e
+          // res = e
           reject(e)
         }
-        resolve(res)
       })
 
-      //2.2.1.2  If onRejected is not a function, it must be ignored.
-      if (isFunction(onRejected)) {
-        this.onRejectedFuncs.push(e => {
-
-        })
-      }
+      this.onRejectedCallbacks.push(reason => {
+        try {
+          //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
+          resolve(onRejected(reason))
+        } catch (e) {
+          reject(e)
+        }
+      })
     })
   }
 }
@@ -103,14 +112,27 @@ const a = new PromiseA((resolve, reject) => {
 })
 
 const b = a.then((val) => {
-  // const a = 1
   console.log('b', val)
-  // a = 3
+
+  const a = 1
+  a = 3
   return 2
+}, e => {
+  console.log(3, e)
 })
 
 const c = b.then((val) => {
   console.log('c', val)
-
   return 3
+}, e => {
+  console.log(4, e)
+  return 0
 })
+
+const d = c.then((val) => {
+  console.log('d', val)
+  return 3
+}, e => {
+  console.log(5, e)
+})
+
