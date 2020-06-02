@@ -2,6 +2,8 @@ function isFunction(param) {
   return typeof param === "function"
 }
 
+// 难点在于2.2.7，仔细看88行和107行
+
 // 2.2.4 onFulfilled or onRejected must not be called until the execution context stack contains only platform code
 function defer(...a) {
   return process.nextTick(...a)
@@ -25,20 +27,25 @@ class PromiseA {
       this.reject.call(this, e)
     }
   }
-  // 2.1.2 When fulfilled, a promise:
-  //  2.1.2.1 must not transition to any other state.
-  //  2.1.2.2 must have a value, which must not change.
+
   handleFulfilled(val) {
-    this.statu = FULFILLED
+
+
+
+
+    // 2.1.2 When fulfilled, a promise:
+    //  2.1.2.1 must not transition to any other state.
+    //  2.1.2.2 must have a value, which must not change.
     this.value = val
+    this.statu = FULFILLED
     Object.freeze(this)
   }
   // 2.1.2 When rejected, a promise:
   //  2.1.2.1 must not transition to any other state.
   //  2.1.2.2 must have a reason, which must not change.
   handleRejected(reason) {
-    this.statu = REJECTED
     this.value = reason
+    this.statu = REJECTED
     Object.freeze(this)
   }
 
@@ -71,16 +78,23 @@ class PromiseA {
   // 2.2.1 Both onFulfilled and onRejected are optional arguments:
   then(onFulfilled, onRejected) {
     // 2.2.7 then must return a promise
-    return new PromiseA((resolve, reject) => {
+    const promise = new PromiseA((resolve, reject) => {
       // 2.2.1.1  If onFulfilled is not a function, it must be ignored.
       this.onFulfilledCallbacks.push(val => {
         if (this.statu !== FULFILLED) return
-        
+
         try {
           if (isFunction(onFulfilled)) {
             //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
             //2.2.5 onFulfilled and onRejected must be called as functions 
-            resolve(onFulfilled(val))
+            const x = onFulfilled(val)
+
+            // 2.3.1 If promise and x refer to the same object, reject promise with a TypeError as the reason.
+            if (promise === x) {
+              return reject(new TypeError('Chaining cycle detected for promise #<Promise>'))
+            }
+
+            resolve(x)
           } else {
             // 2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
             resolve(this.value)
@@ -111,6 +125,9 @@ class PromiseA {
         }
       })
     })
+
+
+    return promise
   }
 }
 
@@ -122,8 +139,9 @@ const a = new PromiseA((resolve, reject) => {
 
 const b = a.then(() => {
   console.log('b')
-  const a = 1
-  a = 3
+  // const a = 1
+  // a = 3
+  return b
 }, e => {
   console.log(3, e)
   return e
@@ -142,7 +160,7 @@ const d = c.then((val) => {
   return 0
 })
 
-const e = d.then((val) => {
+var e = d.then((val) => {
   console.log('e', val)
   return 5
 }, e => {
