@@ -9,6 +9,22 @@ function defer(...a) {
   return process.nextTick(...a)
 }
 
+function resolutionProcedure(promise, x, resolve, reject) {
+  // 2.3.1 If promise and x refer to the same object, reject promise with a TypeError as the reason.
+  if (promise === x) {
+    return reject(new TypeError('Chaining cycle detected for promise #<Promise>'))
+  }
+  if (x instanceof PromiseA) {
+    // 2.3.2 If x is a promise, adopt its state
+    promise.statu = x.statu
+    // 2.3.2.2 If/when x is fulfilled, fulfill promise with the same value.
+    // 2.3.2.3 If/when x is rejected, reject promise with the same reason.
+    x.then(value => resolve(value), reason => reject(reason))
+  } else {
+    resolve(x)
+  }
+}
+
 // 2.1 A promise must be in one of three states: pending, fulfilled, or rejected.
 const PENDING = 'pending'
 const FULFILLED = 'fulfilled'
@@ -84,20 +100,8 @@ class PromiseA {
             //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
             //2.2.5 onFulfilled and onRejected must be called as functions 
             const x = onFulfilled(val)
-
-            // 2.3.1 If promise and x refer to the same object, reject promise with a TypeError as the reason.
-            if (promise === x) {
-              return reject(new TypeError('Chaining cycle detected for promise #<Promise>'))
-            }
-            if (x instanceof PromiseA) {
-              // 2.3.2 If x is a promise, adopt its state
-              promise.statu = x.statu
-              // 2.3.2.2 If/when x is fulfilled, fulfill promise with the same value.
-              // 2.3.2.3 If/when x is rejected, reject promise with the same reason.
-              x.then(value => resolve(value), reason => reject(reason))
-            } else {
-              resolve(x)
-            }
+            
+            resolutionProcedure(promise, x, resolve, reject)
           } else {
             // 2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
             resolve(this.value)
@@ -116,7 +120,8 @@ class PromiseA {
           if (isFunction(onRejected)) {
             //2.2.7.1 If either onFulfilled or onRejected returns a value x, run the Promise Resolution Procedure [[Resolve]](promise2, x).
             //2.2.5 onFulfilled and onRejected must be called as functions 
-            resolve(onRejected(reason))
+            const x = onRejected(reason)
+            resolutionProcedure(promise, x, resolve, reject)
           } else {
             // 2.2.7.4 If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason as promise1.
             reject(this.value)
@@ -135,21 +140,22 @@ class PromiseA {
 }
 log = console.log
 var demo = new PromiseA((resolve, reject) => {
-  defer(() => {
-    log('01')
-    resolve(1)
+  const r = 0
+  r = 1
+  resolve(1)
+
+}).then(1, 2).then(() => {
+  console.log(11)
+  return new PromiseA((resolve) => {
+    console.log('y')
+    resolve('y4')
+  })
+}, () => {
+  console.log(22)
+  return new PromiseA((resolve) => {
+    console.log('n')
+    resolve('n4')
   })
 }).then((val) => {
-  return new PromiseA((res) => {
-    log('02', val)
-    res(2)
-  })
-    .then(l => {
-      log('03', l)
-      return 3
-    })
-}).then(4).then(val => {
-  log('05', val)
-  return 5
+  console.log(val)
 })
-
