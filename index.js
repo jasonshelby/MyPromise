@@ -29,10 +29,6 @@ class PromiseA {
   }
 
   handleFulfilled(val) {
-
-
-
-
     // 2.1.2 When fulfilled, a promise:
     //  2.1.2.1 must not transition to any other state.
     //  2.1.2.2 must have a value, which must not change.
@@ -93,8 +89,15 @@ class PromiseA {
             if (promise === x) {
               return reject(new TypeError('Chaining cycle detected for promise #<Promise>'))
             }
-
-            resolve(x)
+            if (x instanceof PromiseA) {
+              // 2.3.2 If x is a promise, adopt its state
+              promise.statu = x.statu
+              // 2.3.2.2 If/when x is fulfilled, fulfill promise with the same value.
+              // 2.3.2.3 If/when x is rejected, reject promise with the same reason.
+              x.then(value => resolve(value), reason => reject(reason))
+            } else {
+              resolve(x)
+            }
           } else {
             // 2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value as promise1.
             resolve(this.value)
@@ -130,40 +133,23 @@ class PromiseA {
     return promise
   }
 }
-
-const a = new PromiseA((resolve, reject) => {
-  console.log('a')
-
-  resolve(1)
-})
-
-const b = a.then(() => {
-  console.log('b')
-  // const a = 1
-  // a = 3
-  return b
-}, e => {
-  console.log(3, e)
-  return e
-})
-
-const c = b.then((val) => {
-  console.log('c', val)
-  return 3
-}, 3)
-
-const d = c.then((val) => {
-  console.log('d', val)
-  return 4
-}, e => {
-  console.log(5, e)
-  return 0
-})
-
-var e = d.then((val) => {
-  console.log('e', val)
+log = console.log
+var demo = new PromiseA((resolve, reject) => {
+  defer(() => {
+    log('01')
+    resolve(1)
+  })
+}).then((val) => {
+  return new PromiseA((res) => {
+    log('02', val)
+    res(2)
+  })
+    .then(l => {
+      log('03', l)
+      return 3
+    })
+}).then(4).then(val => {
+  log('05', val)
   return 5
-}, e => {
-  console.log(6, e)
 })
 
