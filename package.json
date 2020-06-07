@@ -1,5 +1,8 @@
 {
-  "dependencies": {
-    "flush-promises": "^1.0.2"
+  "devDependencies": {
+    "promises-aplus-tests": "^2.1.2"
+  },
+  "scripts": {
+    "test": "promises-aplus-tests index.js"
   }
 }

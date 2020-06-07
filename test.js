@@ -1,26 +1,23 @@
-const promise = require('./index');
+const PromiseA = require('./index')
 
+log = console.log
+var demo = new PromiseA((resolve, reject) => {
+  const r = 0
+  r = 1
+  resolve(1)
 
-
-test('adds 1 + 2 to equal 3', () => {
-  expect(demo(1, 2)).toBe(3);
-
-const demo = new MyPromise((resolve) => {
-  console.log('START')
-  resolve('first resolve')
+}).then(1, 2).then(() => {
+  console.log(11)
+  return new PromiseA((resolve) => {
+    console.log('y')
+    resolve('y4')
+  })
+}, () => {
+  console.log(22)
+  return new PromiseA((resolve) => {
+    console.log('n')
+    resolve('n4')
+  })
+}).then((val) => {
+  console.log(val)
 })
-  .then(v => {
-    console.log('then 1', v)
-    return 1
-  })
-  .then(v => {
-    console.log('then 2', v)
-    return 2
-  })
-  .then(v => {
-    console.log('then 3', v)
-    return 3
-  })
-
-
-});
